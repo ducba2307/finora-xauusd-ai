@@ -1,0 +1,11 @@
+services:
+  finora-trading-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: finora-trading-ai
+    restart: always
+    ports:
+      - "4173:80"
+    environment:
+      - NODE_ENV=production

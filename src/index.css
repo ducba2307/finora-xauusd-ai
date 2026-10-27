@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #07080c;
+    --card-surface: #0e111a;
+    --card-surface-elevated: #141824;
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-border-hover: rgba(255, 255, 255, 0.16);
+    --pink-neon: #ec4899;
+    --pink-accent: #f43f5e;
+    --pink-glow: rgba(236, 72, 153, 0.35);
+    --positive: #10b981;
+    --negative: #f43f5e;
+  }
+}
+
+body {
+  margin: 0;
+  background-color: #07080c;
+  color: #f3f4f6;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+.font-mono-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Financial tick flashes */
+@keyframes flash-up {
+  0% { background-color: rgba(16, 185, 129, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-down {
+  0% { background-color: rgba(244, 63, 94, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.tick-flash-up {
+  animation: flash-up 450ms ease-out;
+}
+
+.tick-flash-down {
+  animation: flash-down 450ms ease-out;
+}
+
+/* Glassmorphism card styles */
+.fin-card {
+  background: rgba(14, 17, 26, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fin-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.fin-card-glow {
+  background: rgba(14, 17, 26, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  box-shadow: 0 0 35px -5px rgba(236, 72, 153, 0.25);
+  border-radius: 16px;
+}
+
+/* Radiant pink halo ring background */
+.hero-halo {
+  position: absolute;
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 900px;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 58%, rgba(244, 63, 94, 0.12) 65%, rgba(236, 72, 153, 0.45) 75%, rgba(217, 70, 239, 0.8) 85%, transparent 92%);
+  filter: blur(28px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero-halo-core {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 780px;
+  height: 780px;
+  border-radius: 50%;
+  border: 2px solid rgba(244, 63, 94, 0.85);
+  box-shadow: 
+    0 0 25px rgba(236, 72, 153, 0.9),
+    0 0 60px rgba(244, 63, 94, 0.6),
+    inset 0 0 40px rgba(236, 72, 153, 0.3);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Perspective Grid Background */
+.bg-grid-pattern {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+}
+
+.radial-mask {
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 85%);
+}
+
+/* Shimmer animation */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2.5s infinite;
+}
+
+/* Floating animation */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-float {
+  animation: float-slow 4s ease-in-out infinite;
+}

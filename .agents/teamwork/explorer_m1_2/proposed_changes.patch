@@ -1,0 +1,235 @@
+# Proposed Implementation Patch for Milestone 1 (F03 & F05)
+# Target Project: Finora Quant AI Trading Platform
+# Working Directory: d:\VIBECODE\finora-trading-ai
+
+diff --git a/src/types/trading.ts b/src/types/trading.ts
+--- a/src/types/trading.ts
++++ b/src/types/trading.ts
+@@ -95,6 +95,7 @@
+ export interface OrderBook {
+   bids: OrderBookEntry[]
+   asks: OrderBookEntry[]
+   spread: number
+   spreadPct: number
++  spreadPips?: number
+ }
+
+diff --git a/src/utils/formatters.ts b/src/utils/formatters.ts
+--- a/src/utils/formatters.ts
++++ b/src/utils/formatters.ts
+@@ -69,12 +69,21 @@
+-export function formatPrice(price: number, symbol: string = ''): string {
+-  if (!Number.isFinite(price)) return '0.00'
+-  const isForex = (symbol.includes('EUR') || symbol.includes('GBP') || symbol.includes('JPY')) && !symbol.includes('USDT')
+-  const isJpy = symbol.includes('JPY')
+-  if (isForex) {
+-    return price.toFixed(isJpy ? 3 : 5)
+-  }
+-  return price.toFixed(2)
++export function formatPrice(price: number, symbol: string = '', includeCommas: boolean = true): string {
++  if (!Number.isFinite(price)) return '0.00'
++  const clean = (symbol || '').toUpperCase().trim()
++  const isJpy = clean.includes('JPY')
++  const isFxMajors = (clean.includes('EUR') || clean.includes('GBP')) && !clean.includes('USDT')
++  const digits = isFxMajors ? 5 : isJpy ? 3 : 2
++
++  if (!includeCommas || isFxMajors || isJpy) {
++    return price.toFixed(digits)
++  }
++
++  return price.toLocaleString('en-US', {
++    minimumFractionDigits: digits,
++    maximumFractionDigits: digits,
++  })
+ }
+ 
+ /**
+  * Pip difference formatter.
+  */
+-export function formatPips(pips: number): string {
+-  if (!Number.isFinite(pips)) return '0.0 pips'
+-  const sign = pips > 0 ? '+' : ''
+-  return `${sign}${pips.toFixed(1)} pips`
++export function formatPips(pips: number, showSign: boolean = true, decimals: number = 1): string {
++  if (!Number.isFinite(pips)) return '0.0 pips'
++  const sign = showSign && pips > 0 ? '+' : ''
++  return `${sign}${pips.toFixed(decimals)} pips`
+ }
+
+diff --git a/src/data/mockData.ts b/src/data/mockData.ts
+--- a/src/data/mockData.ts
++++ b/src/data/mockData.ts
+@@ -17,2 +17,3 @@
+ } from '../types/trading'
++import { generateInstitutionalOrderBook } from '../services/marketDataSimulator'
+ 
+@@ -777,36 +778,7 @@
+-export const GENERATE_ORDER_BOOK = (basePrice: number): OrderBook => {
+-  const bids = []
+-  const asks = []
+-  let cumulativeBid = 0
+-  let cumulativeAsk = 0
+-  const step = basePrice > 1000 ? 2.5 : basePrice > 100 ? 0.25 : 0.0002
+-
+-  for (let i = 1; i <= 8; i++) {
+-    const askPrice = Number((basePrice + i * step).toFixed(basePrice > 100 ? 2 : 5))
+-    const askSize = Number((0.2 + Math.random() * 2.2).toFixed(3))
+-    cumulativeAsk += askSize
+-    asks.unshift({
+-      price: askPrice,
+-      size: askSize,
+-      total: Number(cumulativeAsk.toFixed(3)),
+-      depthPct: Math.min(100, Math.round((cumulativeAsk / 15) * 100)),
+-    })
+-
+-    const bidPrice = Number((basePrice - i * step).toFixed(basePrice > 100 ? 2 : 5))
+-    const bidSize = Number((0.2 + Math.random() * 2.5).toFixed(3))
+-    cumulativeBid += bidSize
+-    bids.push({
+-      price: bidPrice,
+-      size: bidSize,
+-      total: Number(cumulativeBid.toFixed(3)),
+-      depthPct: Math.min(100, Math.round((cumulativeBid / 15) * 100)),
+-    })
+-  }
+-
+-  const bestAsk = asks[asks.length - 1]?.price || basePrice + step
+-  const bestBid = bids[0]?.price || basePrice - step
+-  const spread = Number((bestAsk - bestBid).toFixed(basePrice > 100 ? 2 : 5))
+-  const spreadPct = Number(((spread / basePrice) * 100).toFixed(4))
+-
+-  return { bids, asks, spread, spreadPct }
++export const GENERATE_ORDER_BOOK = (basePrice: number, symbol: string = 'BTC/USDT'): OrderBook => {
++  return generateInstitutionalOrderBook(symbol, basePrice)
+ }
+
+diff --git a/src/components/OrderEntryWidget.tsx b/src/components/OrderEntryWidget.tsx
+--- a/src/components/OrderEntryWidget.tsx
++++ b/src/components/OrderEntryWidget.tsx
+@@ -3,2 +3,2 @@
+-import { formatCurrency } from '../utils/formatters'
++import { formatCurrency, formatPrice } from '../utils/formatters'
+@@ -59,1 +59,1 @@
+-  }, [symbol, isForex, currentPrice])
++  }, [symbol, isForex])
+@@ -79,3 +79,3 @@
+   const isMarket = orderType === 'MARKET'
+   const parsedLimit = parseFloat(limitPrice) || currentPrice
+   const activePrice = isMarket ? currentPrice : parsedLimit
+@@ -126,6 +126,20 @@
+     const finalSymbol = isForex 
+       ? symbol 
+       : (symbol.includes('/') ? symbol : `${symbol}/USDT`)
++
++    // Institutional Execution Fill Calculation (F03)
++    const cfg = getAssetConfig(finalSymbol)
++    const fill = defaultMarketStore.calculateExecutionFill(
++      finalSymbol,
++      side === 'LONG' ? 'BUY' : 'SELL',
++      parsedAmount
++    )
++    const executedEntryPrice = isMarket ? fill.fillPrice : activePrice
++    const priceDelta = side === 'LONG' 
++      ? (currentPrice - executedEntryPrice) 
++      : (executedEntryPrice - currentPrice)
++    const notionalMult = isForex ? (symbol.includes('XAU') ? 100 : 100000) : 1
++    const initialUnrealizedPnl = isMarket ? Number((priceDelta * notionalMult * parsedAmount).toFixed(2)) : 0
++    const initialPnlPct = requiredMargin > 0 ? Number(((initialUnrealizedPnl / requiredMargin) * 100).toFixed(2)) : 0
+@@ -138,4 +152,4 @@
+-        entryPrice: activePrice,
+-        markPrice: currentPrice,
+-        liquidationPrice: Number(estimatedLiq.toFixed(2)),
+-        leverage,
+-        margin: Number(requiredMargin.toFixed(2)),
+-        unrealizedPnl: 0,
+-        unrealizedPnlPct: 0,
++        entryPrice: executedEntryPrice,
++        markPrice: currentPrice,
++        liquidationPrice: Number(estimatedLiq.toFixed(cfg.digits)),
++        leverage,
++        margin: Number(requiredMargin.toFixed(2)),
++        unrealizedPnl: initialUnrealizedPnl,
++        unrealizedPnlPct: initialPnlPct,
+@@ -399,1 +413,1 @@
+-            <span className="text-amber-400 font-bold font-mono-num">{formatCurrency(estimatedLiq)}</span>
++            <span className="text-amber-400 font-bold font-mono-num">{formatPrice(estimatedLiq, symbol)}</span>
+
+diff --git a/src/components/OrderBookWidget.tsx b/src/components/OrderBookWidget.tsx
+--- a/src/components/OrderBookWidget.tsx
++++ b/src/components/OrderBookWidget.tsx
+@@ -3,2 +3,2 @@
+-import { formatCurrency } from '../utils/formatters'
++import { formatPrice, formatPips } from '../utils/formatters'
+@@ -10,2 +10,3 @@
+   onSelectPrice: (price: number) => void
++  symbol?: string
+ }
+@@ -18,2 +19,5 @@
+ }) => {
++  const isForex = symbol?.includes('/') && !symbol?.includes('USDT')
++  const [baseAsset, quoteAsset] = (symbol || 'BTC/USDT').split('/')
++
+@@ -59,2 +63,2 @@
+-            <span>Price (USDT)</span>
+-            <span className="text-right">Size (BTC)</span>
++            <span>Price ({quoteAsset || 'USDT'})</span>
++            <span className="text-right">Size ({baseAsset || 'BTC'})</span>
+@@ -78,1 +82,1 @@
+-                  {formatCurrency(ask.price)}
++                  {formatPrice(ask.price, symbol)}
+@@ -94,1 +98,1 @@
+-                {formatCurrency(currentPrice)}
++                {formatPrice(currentPrice, symbol)}
+@@ -99,1 +103,3 @@
+-              Spread: <strong className="text-gray-300">${orderBook.spread.toFixed(2)}</strong> ({orderBook.spreadPct}%)
++              Spread: <strong className="text-gray-300">
++                {orderBook.spreadPips !== undefined || isForex ? formatPips(orderBook.spreadPips ?? (orderBook.spread / (symbol?.includes('XAU') ? 0.1 : 0.0001)), false) : `$${orderBook.spread.toFixed(2)}`}
++              </strong> ({orderBook.spreadPct}%)
+@@ -117,1 +123,1 @@
+-                  {formatCurrency(bid.price)}
++                  {formatPrice(bid.price, symbol)}
+@@ -133,2 +139,2 @@
+-            <span>Price (USDT)</span>
+-            <span className="text-right">Size (BTC)</span>
++            <span>Price ({quoteAsset || 'USDT'})</span>
++            <span className="text-right">Size ({baseAsset || 'BTC'})</span>
+@@ -146,1 +152,1 @@
+-                  {formatCurrency(trade.price)}
++                  {formatPrice(trade.price, symbol)}
+
+diff --git a/src/components/SwapWidget.tsx b/src/components/SwapWidget.tsx
+--- a/src/components/SwapWidget.tsx
++++ b/src/components/SwapWidget.tsx
+@@ -4,1 +4,2 @@
+ import confetti from 'canvas-confetti'
++import { defaultMarketStore } from '../stores/marketStore'
+@@ -22,6 +23,21 @@
+-  // Current rate
+-  const ethPrice = 3248.30
+-  const rate = fromToken === 'ETH' ? ethPrice : 1 / ethPrice
++  // Live Token Price Discovery
++  const getTokenPrice = (token: string): number => {
++    if (token === 'USDT') return 1.0
++    return defaultMarketStore.getTicker(`${token}/USDT`)?.midPrice ?? (token === 'ETH' ? 3248.30 : token === 'SOL' ? 194.25 : 1.0)
++  }
++  const fromPriceUsd = getTokenPrice(fromToken)
++  const toPriceUsd = getTokenPrice(toToken)
++  const rawRate = toPriceUsd > 0 ? fromPriceUsd / toPriceUsd : 1.0
++  
++  // Institutional Square-Root AMM Slippage Model (F03)
+   const parsedFrom = parseFloat(fromAmount) || 0
+-  const calculatedTo = (parsedFrom * rate).toFixed(2)
++  const tradeUsdValue = parsedFrom * fromPriceUsd
++  const poolDepthUsd = 10_000_000
++  const baseFeePct = 0.0005 // 5 bps
++  const impactPct = 0.0025 * Math.sqrt(Math.max(0, tradeUsdValue) / poolDepthUsd)
++  const totalSlippagePct = Math.min(0.05, baseFeePct + impactPct)
++  const effectiveRate = rawRate * (1 - totalSlippagePct)
++  const toDecimals = toToken === 'USDT' ? 2 : 4
++  const calculatedTo = (parsedFrom * effectiveRate).toFixed(toDecimals)
+@@ -106,1 +122,1 @@
+-              ≈ ${(parsedFrom * ethPrice).toFixed(2)}
++              ≈ ${(parsedFrom * fromPriceUsd).toFixed(2)}
+@@ -176,1 +192,1 @@
+-        <span>1 ETH = 3,248.30 USDT</span>
++        <span>1 {fromToken} = {rawRate.toFixed(toDecimals)} {toToken} (Slippage: {(totalSlippagePct * 100).toFixed(2)}%)</span>
