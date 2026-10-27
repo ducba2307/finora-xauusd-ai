@@ -33,6 +33,9 @@ export interface ChartDataPoint {
   signalText?: string
   ema20?: number
   ema50?: number
+  ema34?: number
+  ema89?: number
+  ema200?: number
   aiUpperBand?: number
   aiLowerBand?: number
 }
@@ -46,6 +49,9 @@ export interface CandlestickPoint {
   volume: number
   ema20?: number
   ema50?: number
+  ema34?: number
+  ema89?: number
+  ema200?: number
   signal?: 'BUY' | 'SELL' | 'TAKE_PROFIT' | 'SMC_OB' | 'SMC_FVG'
   signalText?: string
 }

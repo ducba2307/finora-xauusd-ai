@@ -17,12 +17,13 @@ import type {
   CandlestickData,
   WhitespaceData,
   HistogramData,
+  LineData,
   SeriesMarker,
   IPriceLine
 } from 'lightweight-charts'
 import { 
   Sparkles, Layers, Eye, EyeOff, Maximize2, Minimize2, 
-  Wifi, BarChart2, Activity, Zap, Bell, Code2, Bot, BoxSelect
+  Wifi, BarChart2, Activity, Bell, Code2, Bot, BoxSelect
 } from 'lucide-react'
 import type { CandlestickPoint, Position } from '../types/trading'
 import { formatCurrency, formatPercent } from '../utils/formatters'
@@ -77,8 +78,9 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const areaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
-  const ema20SeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
-  const ema50SeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+  const ema34SeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+  const ema89SeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+  const ema200SeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const positionPriceLinesRef = useRef<IPriceLine[]>([])
   const isInitializedRef = useRef<boolean>(false)
   const prevCandlesLenRef = useRef<number>(0)
@@ -90,10 +92,12 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
   const [showEma, setShowEma] = useState<boolean>(true)
   const [showVolume, setShowVolume] = useState<boolean>(true)
   const [showSmcZones, setShowSmcZones] = useState<boolean>(true)
+  const [isCleanView, setIsCleanView] = useState<boolean>(true)
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false)
 
   // AI & Advanced Charting states
-  const [activeTool, setActiveTool] = useState<ChartDrawingTool>('CURSOR')
+  const activeToolState = useState<ChartDrawingTool>('CURSOR')
+  const [activeTool, setActiveTool] = activeToolState
   const [isLocked, setIsLocked] = useState(false)
   const [showVolumeProfile, setShowVolumeProfile] = useState(false)
   const [isSelectExplainOpen, setIsSelectExplainOpen] = useState(false)
@@ -113,6 +117,9 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
     close: number
     volume?: number
     time?: string
+    ema34?: number
+    ema89?: number
+    ema200?: number
   } | null>(null)
 
   const TIMEFRAMES = ['1m', '5m', '15m', '1H', '4H', '1D', '1W']
@@ -405,20 +412,30 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
     })
     volumeSeriesRef.current = volumeSeries
 
-    // 5. Add EMA 20 & EMA 50 Lines
-    const ema20Series = chart.addSeries(LineSeries, {
-      color: '#06b6d4',
+    // 5. Add EMA 34, EMA 89 & EMA 200 Lines (Classic Institutional Fibonacci System)
+    const ema34Series = chart.addSeries(LineSeries, {
+      color: '#06b6d4', // Fast Trend: Cyan
       lineWidth: 2,
-      title: 'EMA 20',
+      title: 'EMA 34',
+      priceLineVisible: false,
     })
-    ema20SeriesRef.current = ema20Series
+    ema34SeriesRef.current = ema34Series
 
-    const ema50Series = chart.addSeries(LineSeries, {
-      color: '#ec4899',
+    const ema89Series = chart.addSeries(LineSeries, {
+      color: '#f59e0b', // Medium Trend: Amber
       lineWidth: 2,
-      title: 'EMA 50',
+      title: 'EMA 89',
+      priceLineVisible: false,
     })
-    ema50SeriesRef.current = ema50Series
+    ema89SeriesRef.current = ema89Series
+
+    const ema200Series = chart.addSeries(LineSeries, {
+      color: '#ec4899', // Long-term Trend / Baseline: Neon Pink
+      lineWidth: 2,
+      title: 'EMA 200',
+      priceLineVisible: false,
+    })
+    ema200SeriesRef.current = ema200Series
 
     // Subscribe to crosshair move for interactive legend
     chart.subscribeCrosshairMove((param) => {
@@ -429,6 +446,9 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
 
       const candleData = param.seriesData.get(candleSeries) as (CandlestickData<UTCTimestamp> | WhitespaceData<UTCTimestamp>) | undefined
       const volData = param.seriesData.get(volumeSeries) as (HistogramData<UTCTimestamp> | WhitespaceData<UTCTimestamp>) | undefined
+      const e34 = param.seriesData.get(ema34Series) as (LineData<UTCTimestamp> | WhitespaceData<UTCTimestamp>) | undefined
+      const e89 = param.seriesData.get(ema89Series) as (LineData<UTCTimestamp> | WhitespaceData<UTCTimestamp>) | undefined
+      const e200 = param.seriesData.get(ema200Series) as (LineData<UTCTimestamp> | WhitespaceData<UTCTimestamp>) | undefined
 
       if (candleData && 'open' in candleData) {
         setHoverData({
@@ -438,6 +458,9 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
           close: candleData.close,
           volume: volData && 'value' in volData ? volData.value : undefined,
           time: new Date((param.time as number) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          ema34: e34 && 'value' in e34 ? e34.value : undefined,
+          ema89: e89 && 'value' in e89 ? e89.value : undefined,
+          ema200: e200 && 'value' in e200 ? e200.value : undefined,
         })
       } else {
         setHoverData(null)
@@ -501,19 +524,27 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
         )
       }
 
-      if (ema20SeriesRef.current) {
-        ema20SeriesRef.current.setData(
+      if (ema34SeriesRef.current) {
+        ema34SeriesRef.current.setData(
           candles
-            .filter((c) => c.ema20 !== undefined)
-            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema20! }))
+            .filter((c) => c.ema34 !== undefined)
+            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema34! }))
         )
       }
 
-      if (ema50SeriesRef.current) {
-        ema50SeriesRef.current.setData(
+      if (ema89SeriesRef.current) {
+        ema89SeriesRef.current.setData(
           candles
-            .filter((c) => c.ema50 !== undefined)
-            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema50! }))
+            .filter((c) => c.ema89 !== undefined)
+            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema89! }))
+        )
+      }
+
+      if (ema200SeriesRef.current) {
+        ema200SeriesRef.current.setData(
+          candles
+            .filter((c) => c.ema200 !== undefined)
+            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema200! }))
         )
       }
       return
@@ -550,19 +581,27 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
         )
       }
 
-      if (ema20SeriesRef.current) {
-        ema20SeriesRef.current.setData(
+      if (ema34SeriesRef.current) {
+        ema34SeriesRef.current.setData(
           candles
-            .filter((c) => c.ema20 !== undefined)
-            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema20! }))
+            .filter((c) => c.ema34 !== undefined)
+            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema34! }))
         )
       }
 
-      if (ema50SeriesRef.current) {
-        ema50SeriesRef.current.setData(
+      if (ema89SeriesRef.current) {
+        ema89SeriesRef.current.setData(
           candles
-            .filter((c) => c.ema50 !== undefined)
-            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema50! }))
+            .filter((c) => c.ema89 !== undefined)
+            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema89! }))
+        )
+      }
+
+      if (ema200SeriesRef.current) {
+        ema200SeriesRef.current.setData(
+          candles
+            .filter((c) => c.ema200 !== undefined)
+            .map((c) => ({ time: c.time as UTCTimestamp, value: c.ema200! }))
         )
       }
       return
@@ -595,17 +634,24 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
         })
       }
 
-      if (ema20SeriesRef.current && bar.ema20 !== undefined) {
-        ema20SeriesRef.current.update({
+      if (ema34SeriesRef.current && bar.ema34 !== undefined) {
+        ema34SeriesRef.current.update({
           time: barTime,
-          value: bar.ema20,
+          value: bar.ema34,
         })
       }
 
-      if (ema50SeriesRef.current && bar.ema50 !== undefined) {
-        ema50SeriesRef.current.update({
+      if (ema89SeriesRef.current && bar.ema89 !== undefined) {
+        ema89SeriesRef.current.update({
           time: barTime,
-          value: bar.ema50,
+          value: bar.ema89,
+        })
+      }
+
+      if (ema200SeriesRef.current && bar.ema200 !== undefined) {
+        ema200SeriesRef.current.update({
+          time: barTime,
+          value: bar.ema200,
         })
       }
     }
@@ -624,21 +670,32 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
     }
   }, [candles, symbol, timeframe])
 
-  // Dedicated AI & SMC Markers Synchronization Effect
+  // Dedicated AI & SMC Markers Synchronization Effect (Clean, spacious, zero text collision)
   useEffect(() => {
     if (!candlestickSeriesRef.current) return
 
     const markers: SeriesMarker<UTCTimestamp>[] = []
 
-    if (showAiSignals) {
-      candles.forEach((c) => {
+    if (showAiSignals && !isCleanView) {
+      // Show only the latest clean AI signals with minimal text
+      const validSignals = candles.filter((c) => c.signal === 'BUY' || c.signal === 'TAKE_PROFIT' || c.signal === 'SELL')
+      const recentSignals = validSignals.slice(-3)
+      recentSignals.forEach((c) => {
         if (c.signal === 'BUY') {
           markers.push({
             time: c.time as UTCTimestamp,
             position: 'belowBar',
             color: '#10b981',
             shape: 'arrowUp',
-            text: c.signalText || '⚡ AI BUY',
+            text: 'BUY',
+          })
+        } else if (c.signal === 'SELL') {
+          markers.push({
+            time: c.time as UTCTimestamp,
+            position: 'aboveBar',
+            color: '#f43f5e',
+            shape: 'arrowDown',
+            text: 'SELL',
           })
         } else if (c.signal === 'TAKE_PROFIT') {
           markers.push({
@@ -646,37 +703,30 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
             position: 'aboveBar',
             color: '#f59e0b',
             shape: 'circle',
-            text: c.signalText || '🎯 TAKE PROFIT',
-          })
-        } else if (c.signal === 'SMC_FVG' && showSmcZones) {
-          markers.push({
-            time: c.time as UTCTimestamp,
-            position: 'belowBar',
-            color: '#38bdf8',
-            shape: 'arrowUp',
-            text: c.signalText || '🔷 FVG ZONE',
+            text: 'TP',
           })
         }
       })
     }
 
-    // Add Smart Money Concepts (SMC) Institutional Markers matching the video
-    if (showSmcZones && smcResult) {
-      // 1. Swept Liquidity Pools (SSL Swept / BSL Swept)
-      smcResult.liquidityPools.forEach((pool) => {
-        if (pool.isSwept && pool.sweptAtTime) {
-          markers.push({
-            time: pool.sweptAtTime as UTCTimestamp,
-            position: pool.type === 'SSL' ? 'belowBar' : 'aboveBar',
-            color: pool.type === 'SSL' ? '#10b981' : '#f43f5e',
-            shape: pool.type === 'SSL' ? 'arrowUp' : 'arrowDown',
-            text: pool.type === 'SSL' ? '⚡ SSL SWEPT' : '⚡ BSL SWEPT',
-          })
-        }
+    // Add Smart Money Concepts (SMC) Markers ONLY if not in clean view and limited to latest major structure
+    if (showSmcZones && smcResult && !isCleanView) {
+      // 1. Swept Liquidity Pools: only latest 1 swept pool to avoid overlapping text
+      const sweptPools = smcResult.liquidityPools.filter((p) => p.isSwept && p.sweptAtTime)
+      const latestSwept = sweptPools.slice(-1)
+      latestSwept.forEach((pool) => {
+        markers.push({
+          time: pool.sweptAtTime! as UTCTimestamp,
+          position: pool.type === 'SSL' ? 'belowBar' : 'aboveBar',
+          color: pool.type === 'SSL' ? '#10b981' : '#f43f5e',
+          shape: pool.type === 'SSL' ? 'arrowUp' : 'arrowDown',
+          text: pool.type === 'SSL' ? 'SSL Sweep' : 'BSL Sweep',
+        })
       })
 
-      // 2. Market Structure Breaks: CHoCH (Change of Character) & BOS (Break of Structure)
-      smcResult.structureBreaks.forEach((brk) => {
+      // 2. Market Structure Breaks: only latest 1-2 breaks to prevent collision
+      const latestBreaks = smcResult.structureBreaks.slice(-2)
+      latestBreaks.forEach((brk) => {
         const isBull = brk.direction === 'BULLISH'
         markers.push({
           time: brk.time as UTCTimestamp,
@@ -686,19 +736,6 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
           text: `${brk.type} ${isBull ? '↑' : '↓'}`,
         })
       })
-
-      // 3. Unmitigated FVGs (top 3)
-      smcResult.fvgs.slice(-3).forEach((fvg) => {
-        if (!fvg.isMitigated) {
-          markers.push({
-            time: fvg.time as UTCTimestamp,
-            position: fvg.type === 'BULLISH' ? 'belowBar' : 'aboveBar',
-            color: '#38bdf8',
-            shape: 'square',
-            text: fvg.type === 'BULLISH' ? '🔷 FVG' : '🔶 FVG',
-          })
-        }
-      })
     }
 
     if (markers.length > 0) {
@@ -707,7 +744,7 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
     } else {
       createSeriesMarkers(candlestickSeriesRef.current, [])
     }
-  }, [showAiSignals, showSmcZones, candles, symbol, smcResult])
+  }, [showAiSignals, showSmcZones, isCleanView, candles, symbol, smcResult])
 
   // 3. Toggle Visibility based on controls
   useEffect(() => {
@@ -718,9 +755,10 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
   }, [chartType])
 
   useEffect(() => {
-    if (ema20SeriesRef.current && ema50SeriesRef.current) {
-      ema20SeriesRef.current.applyOptions({ visible: showEma })
-      ema50SeriesRef.current.applyOptions({ visible: showEma })
+    if (ema34SeriesRef.current && ema89SeriesRef.current && ema200SeriesRef.current) {
+      ema34SeriesRef.current.applyOptions({ visible: showEma })
+      ema89SeriesRef.current.applyOptions({ visible: showEma })
+      ema200SeriesRef.current.applyOptions({ visible: showEma })
     }
   }, [showEma])
 
@@ -818,53 +856,53 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
     })
     smcPriceLinesRef.current = []
 
-    if (!showSmcZones || !smcResult) return
+    if (!showSmcZones || !smcResult || isCleanView) return
 
     const { activeSetup, orderBlocks } = smcResult
 
-    // 1. If active setup exists, render Entry, SL, and TP lines
+    // 1. If active setup exists, render Entry, SL, and TP lines with concise, clean titles
     if (activeSetup && activeSetup.direction !== 'NONE') {
       const entryLine = candlestickSeriesRef.current.createPriceLine({
         price: activeSetup.entryPrice,
         color: '#06b6d4',
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: LineStyle.Solid,
         axisLabelVisible: true,
-        title: `[SMC ENTRY ${activeSetup.direction}]`,
+        title: 'Entry',
       })
       if (entryLine) smcPriceLinesRef.current.push(entryLine)
 
       const slLine = candlestickSeriesRef.current.createPriceLine({
         price: activeSetup.stopLoss,
         color: '#f43f5e',
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: `[SMC SL] -${activeSetup.riskPips}p`,
+        title: 'SL',
       })
       if (slLine) smcPriceLinesRef.current.push(slLine)
 
       const tpLine = candlestickSeriesRef.current.createPriceLine({
         price: activeSetup.takeProfit,
         color: '#10b981',
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: `[SMC TP] +${activeSetup.rewardPips}p (1:${activeSetup.riskRewardRatio})`,
+        title: 'TP',
       })
       if (tpLine) smcPriceLinesRef.current.push(tpLine)
     }
 
-    // 2. Render latest active Bullish & Bearish Order Blocks
+    // 2. Render subtle background guide lines for latest Order Blocks (axisLabelVisible: false to prevent axis clutter)
     const activeBullOb = orderBlocks.slice().reverse().find((ob) => ob.type === 'BULLISH' && !ob.isMitigated)
     if (activeBullOb) {
       const bullLine = candlestickSeriesRef.current.createPriceLine({
         price: activeBullOb.top,
-        color: '#10b981',
+        color: 'rgba(16, 185, 129, 0.4)',
         lineWidth: 1,
         lineStyle: LineStyle.Dotted,
-        axisLabelVisible: true,
-        title: `[BULLISH OB]`,
+        axisLabelVisible: false,
+        title: '',
       })
       if (bullLine) smcPriceLinesRef.current.push(bullLine)
     }
@@ -873,15 +911,15 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
     if (activeBearOb) {
       const bearLine = candlestickSeriesRef.current.createPriceLine({
         price: activeBearOb.bottom,
-        color: '#f43f5e',
+        color: 'rgba(244, 63, 94, 0.4)',
         lineWidth: 1,
         lineStyle: LineStyle.Dotted,
-        axisLabelVisible: true,
-        title: `[BEARISH OB]`,
+        axisLabelVisible: false,
+        title: '',
       })
       if (bearLine) smcPriceLinesRef.current.push(bearLine)
     }
-  }, [showSmcZones, smcResult])
+  }, [showSmcZones, smcResult, isCleanView])
 
   const latestCandle = candles[candles.length - 1]
   const displayO = hoverData?.open ?? latestCandle?.open ?? currentPrice
@@ -889,6 +927,9 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
   const displayL = hoverData?.low ?? latestCandle?.low ?? currentPrice
   const displayC = hoverData?.close ?? latestCandle?.close ?? currentPrice
   const displayVol = hoverData?.volume ?? latestCandle?.volume ?? 2450
+  const displayEma34 = hoverData?.ema34 ?? latestCandle?.ema34
+  const displayEma89 = hoverData?.ema89 ?? latestCandle?.ema89
+  const displayEma200 = hoverData?.ema200 ?? latestCandle?.ema200
 
   return (
     <div className={`fin-card relative flex flex-col overflow-hidden transition-all duration-300 ${
@@ -1000,18 +1041,37 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
             <span className="text-[11px] font-semibold">{chartType === 'CANDLES' ? 'Candles' : 'Area Line'}</span>
           </button>
 
-          {/* EMA 20/50 Toggle */}
+          {/* EMA 34/89/200 Toggle */}
           <button
             onClick={() => setShowEma(!showEma)}
-            className={`px-2 py-1.5 rounded-lg border text-[11px] font-bold font-mono-num transition-all cursor-pointer flex items-center gap-1 ${
+            className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold font-mono-num transition-all cursor-pointer flex items-center gap-1.5 ${
               showEma
-                ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300'
+                ? 'bg-white/10 border-cyan-500/40 text-white shadow-[0_0_10px_rgba(6,182,212,0.25)]'
                 : 'bg-white/5 border-white/5 text-gray-500 hover:text-gray-300'
             }`}
-            title="Toggle EMA 20/50 Ribbon"
+            title="Bật/Tắt 3 đường EMA Chuẩn Fibonacci & Định Lượng: 34 (Cyan) | 89 (Vàng) | 200 (Hồng)"
           >
             <Activity className="w-3 h-3 text-cyan-400" />
-            <span>EMA 20/50</span>
+            <span>EMA 34/89/200</span>
+            <span className="flex items-center gap-1 ml-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" title="EMA 34 (Cyan)" />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="EMA 89 (Vàng)" />
+              <span className="w-1.5 h-1.5 rounded-full bg-pink-500" title="EMA 200 (Hồng)" />
+            </span>
+          </button>
+
+          {/* Clean View Toggle (Chế độ thoáng, dễ nhìn) */}
+          <button
+            onClick={() => setIsCleanView(!isCleanView)}
+            className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              isCleanView
+                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
+            }`}
+            title="Chế độ Tinh Gọn: Ẩn bớt các nhãn chữ chồng chéo, giữ biểu đồ thoáng, tập trung vào Nến và 3 đường EMA"
+          >
+            <Eye className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{isCleanView ? 'Thoáng (Clean ON)' : 'Chế Độ Thoáng'}</span>
           </button>
 
           {/* Volume Toggle */}
@@ -1029,9 +1089,16 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
 
           {/* SMC Desktop Institutional AI Engine Toggle */}
           <button
-            onClick={() => setShowSmcZones(!showSmcZones)}
+            onClick={() => {
+              if (isCleanView) {
+                setIsCleanView(false)
+                setShowSmcZones(true)
+              } else {
+                setShowSmcZones(!showSmcZones)
+              }
+            }}
             className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              showSmcZones
+              showSmcZones && !isCleanView
                 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
                 : 'bg-white/5 border-white/5 text-gray-500 hover:text-gray-300'
             }`}
@@ -1081,8 +1148,8 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
         </div>
       </div>
 
-      {/* Floating Crosshair OHLC Legend Bar */}
-      <div className="px-4 py-1.5 bg-[#07090e]/80 border-b border-white/5 flex flex-wrap items-center gap-4 text-[11px] font-mono-num text-gray-400 select-none">
+      {/* Floating Crosshair OHLC & EMA 34/89/200 Legend Bar */}
+      <div className="px-4 py-1.5 bg-[#07090e]/80 border-b border-white/5 flex flex-wrap items-center gap-3 sm:gap-4 text-[11px] font-mono-num text-gray-400 select-none">
         <div className="flex items-center gap-1">
           <span className="text-gray-500">O:</span>
           <span className="text-white font-bold">{formatCurrency(displayO)}</span>
@@ -1105,6 +1172,28 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
           <span className="text-gray-500">Vol:</span>
           <span className="text-white font-bold">{displayVol.toLocaleString()}</span>
         </div>
+
+        {/* Live EMA 34, 89, 200 Values */}
+        {showEma && (
+          <div className="hidden sm:flex items-center gap-3 border-l border-white/10 pl-3">
+            <span className="flex items-center gap-1 font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              <span className="text-cyan-400 font-mono">EMA 34:</span>
+              <span className="text-white tabular-nums font-mono">{displayEma34 ? formatCurrency(displayEma34) : '—'}</span>
+            </span>
+            <span className="flex items-center gap-1 font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span className="text-amber-400 font-mono">EMA 89:</span>
+              <span className="text-white tabular-nums font-mono">{displayEma89 ? formatCurrency(displayEma89) : '—'}</span>
+            </span>
+            <span className="flex items-center gap-1 font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />
+              <span className="text-pink-400 font-mono">EMA 200:</span>
+              <span className="text-white tabular-nums font-mono">{displayEma200 ? formatCurrency(displayEma200) : '—'}</span>
+            </span>
+          </div>
+        )}
+
         {hoverData?.time && (
           <div className="flex items-center gap-1 text-gray-500 ml-auto">
             <span>Bar Time:</span>
@@ -1140,32 +1229,12 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
         <div ref={chartContainerRef} className="w-full h-full" />
 
         {/* SMC Institutional Desktop HUD Overlay (matching video UI) */}
-        <SMCOverlayPanel
-          smcResult={smcResult}
-          visible={showSmcZones}
-          onExecuteSetup={onExecuteSmcSetup}
-        />
-
-        {/* Floating Smart Money Concepts Status Pill (Bottom Overlay) */}
-        {showSmcZones && (
-          <div className="absolute bottom-4 left-14 z-10 flex items-center gap-2 bg-[#090d18]/90 border border-cyan-500/30 backdrop-blur-md px-3 py-1.5 rounded-xl text-[11px] text-gray-300 shadow-xl">
-            <Zap className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-            <span>
-              SMC Target:{' '}
-              <strong className="text-white font-mono-num">
-                {smcResult?.activeSetup.takeProfit && smcResult.activeSetup.direction !== 'NONE'
-                  ? `${smcResult.activeSetup.direction === 'BUY' ? 'BSL Target' : 'SSL Target'} @ $${smcResult.activeSetup.takeProfit.toFixed(2)}`
-                  : `Nearest Liquidity Pool @ $${(currentPrice * 1.008).toFixed(2)}`}
-              </strong>
-            </span>
-            <span
-              className={`w-2 h-2 rounded-full ${
-                smcResult?.activeSetup.gateStatus === 'GATE_PASS'
-                  ? 'bg-emerald-400 animate-ping'
-                  : 'bg-cyan-400'
-              }`}
-            />
-          </div>
+        {!isCleanView && (
+          <SMCOverlayPanel
+            smcResult={smcResult}
+            visible={showSmcZones}
+            onExecuteSetup={onExecuteSmcSetup}
+          />
         )}
       </div>
 

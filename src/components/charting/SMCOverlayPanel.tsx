@@ -24,7 +24,7 @@ export const SMCOverlayPanel: React.FC<SMCOverlayPanelProps> = ({
   visible,
   onExecuteSetup,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : true)
+  const [isCollapsed, setIsCollapsed] = useState(true)
   const [executed, setExecuted] = useState(false)
 
   if (!visible || !smcResult) return null

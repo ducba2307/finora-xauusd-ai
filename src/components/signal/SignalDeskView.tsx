@@ -348,7 +348,7 @@ export const SignalDeskView: React.FC<SignalDeskViewProps> = ({
         >
           {/* Chart Wrapper with clean height */}
           <div className="bg-[#080b14] border border-white/10 rounded-2xl p-2 sm:p-4 shadow-xl">
-            <div className="h-[380px] sm:h-[460px] lg:h-[520px] w-full">
+            <div className="h-[460px] sm:h-[480px] lg:h-[540px] w-full">
               <TradingViewChart
                 symbol="XAU/USD"
                 currentPrice={currentPrice}

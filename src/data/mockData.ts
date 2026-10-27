@@ -942,6 +942,9 @@ export const GENERATE_CANDLESTICK_SERIES = (
   const candles: CandlestickPoint[] = []
   let prevEma20 = basePrice
   let prevEma50 = basePrice * 0.995
+  let prevEma34 = basePrice * 0.997
+  let prevEma89 = basePrice * 0.992
+  let prevEma200 = basePrice * 0.985
 
   for (let i = 0; i < count; i++) {
     const time = startSec + i * intervalSeconds
@@ -954,11 +957,17 @@ export const GENERATE_CANDLESTICK_SERIES = (
     const low = Number((Math.min(open, close) - wickLow).toFixed(digits))
     const volume = Math.round(isForex ? 2500 + Math.random() * 5000 : 45 + Math.random() * 120)
 
-    // EMA calculation
+    // EMA calculation (20, 50, 34, 89, 200)
     const alpha20 = 2 / (20 + 1)
     const alpha50 = 2 / (50 + 1)
+    const alpha34 = 2 / (34 + 1)
+    const alpha89 = 2 / (89 + 1)
+    const alpha200 = 2 / (200 + 1)
     prevEma20 = Number((close * alpha20 + prevEma20 * (1 - alpha20)).toFixed(digits))
     prevEma50 = Number((close * alpha50 + prevEma50 * (1 - alpha50)).toFixed(digits))
+    prevEma34 = Number((close * alpha34 + prevEma34 * (1 - alpha34)).toFixed(digits))
+    prevEma89 = Number((close * alpha89 + prevEma89 * (1 - alpha89)).toFixed(digits))
+    prevEma200 = Number((close * alpha200 + prevEma200 * (1 - alpha200)).toFixed(digits))
 
     const candle: CandlestickPoint = {
       time,
@@ -969,6 +978,9 @@ export const GENERATE_CANDLESTICK_SERIES = (
       volume,
       ema20: prevEma20,
       ema50: prevEma50,
+      ema34: prevEma34,
+      ema89: prevEma89,
+      ema200: prevEma200,
     }
 
     // Embed realistic AI & SMC Signals

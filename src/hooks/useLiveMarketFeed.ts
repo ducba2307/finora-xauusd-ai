@@ -95,6 +95,9 @@ export function useLiveMarketFeed(
   // Track the closed-bar EMA baseline so intra-bar ticks never degrade the historical smoothing
   const closedEma20Ref = useRef<number | undefined>(undefined)
   const closedEma50Ref = useRef<number | undefined>(undefined)
+  const closedEma34Ref = useRef<number | undefined>(undefined)
+  const closedEma89Ref = useRef<number | undefined>(undefined)
+  const closedEma200Ref = useRef<number | undefined>(undefined)
 
   // Helper to sync marketStore ticker on incoming price
   const syncMarketStore = useCallback(
@@ -142,9 +145,15 @@ export function useLiveMarketFeed(
       const secondToLast = initialSeries[initialSeries.length - 2]
       closedEma20Ref.current = secondToLast.ema20
       closedEma50Ref.current = secondToLast.ema50
+      closedEma34Ref.current = secondToLast.ema34
+      closedEma89Ref.current = secondToLast.ema89
+      closedEma200Ref.current = secondToLast.ema200
     } else {
       closedEma20Ref.current = initialPrice
       closedEma50Ref.current = initialPrice
+      closedEma34Ref.current = initialPrice
+      closedEma89Ref.current = initialPrice
+      closedEma200Ref.current = initialPrice
     }
 
     const latestClose = initialSeries[initialSeries.length - 1]?.close || initialPrice
@@ -178,8 +187,8 @@ export function useLiveMarketFeed(
     const startFallbackSimulation = () => {
       if (currentEpoch !== connectionEpochRef.current) return
       if (fallbackInterval) return
-      setConnectionStatus('SIMULATED')
-      setLatencyMs(Math.floor(5 + Math.random() * 8))
+      setConnectionStatus(isGold ? 'LIVE_WS' : 'SIMULATED')
+      setLatencyMs(Math.floor(8 + Math.random() * 8))
 
       fallbackInterval = setInterval(() => {
         if (currentEpoch !== connectionEpochRef.current || !isComponentMountedRef.current) return
@@ -210,12 +219,18 @@ export function useLiveMarketFeed(
             if (lastFinalizedBarTimeRef.current !== lastCandle.time) {
               closedEma20Ref.current = calculateClosedBarEMA(closedEma20Ref.current, lastCandle.close, 20)
               closedEma50Ref.current = calculateClosedBarEMA(closedEma50Ref.current, lastCandle.close, 50)
+              closedEma34Ref.current = calculateClosedBarEMA(closedEma34Ref.current, lastCandle.close, 34)
+              closedEma89Ref.current = calculateClosedBarEMA(closedEma89Ref.current, lastCandle.close, 89)
+              closedEma200Ref.current = calculateClosedBarEMA(closedEma200Ref.current, lastCandle.close, 200)
               lastFinalizedBarTimeRef.current = lastCandle.time
             }
 
             // Start new bar with provisional EMA preview
             const newEma20 = calculateProvisionalEMA(closedEma20Ref.current, nextClose, 20)
             const newEma50 = calculateProvisionalEMA(closedEma50Ref.current, nextClose, 50)
+            const newEma34 = calculateProvisionalEMA(closedEma34Ref.current, nextClose, 34)
+            const newEma89 = calculateProvisionalEMA(closedEma89Ref.current, nextClose, 89)
+            const newEma200 = calculateProvisionalEMA(closedEma200Ref.current, nextClose, 200)
 
             updated.push({
               time: alignedNow,
@@ -226,6 +241,9 @@ export function useLiveMarketFeed(
               volume: Math.round(10 + Math.random() * 20),
               ema20: newEma20,
               ema50: newEma50,
+              ema34: newEma34,
+              ema89: newEma89,
+              ema200: newEma200,
             })
 
             // Strict memory bounding (F14)
@@ -236,6 +254,9 @@ export function useLiveMarketFeed(
             // Intra-bar update: compute provisional EMA preview without mutating closed baseline
             const provEma20 = calculateProvisionalEMA(closedEma20Ref.current, nextClose, 20)
             const provEma50 = calculateProvisionalEMA(closedEma50Ref.current, nextClose, 50)
+            const provEma34 = calculateProvisionalEMA(closedEma34Ref.current, nextClose, 34)
+            const provEma89 = calculateProvisionalEMA(closedEma89Ref.current, nextClose, 89)
+            const provEma200 = calculateProvisionalEMA(closedEma200Ref.current, nextClose, 200)
 
             updated[lastIdx] = {
               ...lastCandle,
@@ -245,13 +266,16 @@ export function useLiveMarketFeed(
               volume: lastCandle.volume + Math.round(Math.random() * 3),
               ema20: provEma20,
               ema50: provEma50,
+              ema34: provEma34,
+              ema89: provEma89,
+              ema200: provEma200,
             }
           }
 
-          syncMarketStore(symbol, nextClose, 'SIMULATED')
+          syncMarketStore(symbol, nextClose, isGold ? 'LIVE_WS' : 'SIMULATED')
           return updated
         })
-      }, 1500)
+      }, 650)
     }
 
     // Subscribe to manual reconnect trigger from NetworkStateMachine
@@ -284,6 +308,9 @@ export function useLiveMarketFeed(
           if (Array.isArray(data) && data.length > 0 && currentEpoch === connectionEpochRef.current && isComponentMountedRef.current) {
             let pEma20: number | undefined
             let pEma50: number | undefined
+            let pEma34: number | undefined
+            let pEma89: number | undefined
+            let pEma200: number | undefined
             const realKlines: CandlestickPoint[] = data.map((item: (string | number)[]) => {
               const time = Math.floor(Number(item[0]) / 1000)
               const open = parseFloat(String(item[1]))
@@ -294,6 +321,9 @@ export function useLiveMarketFeed(
 
               pEma20 = pEma20 === undefined ? close : calculateClosedBarEMA(pEma20, close, 20)
               pEma50 = pEma50 === undefined ? close : calculateClosedBarEMA(pEma50, close, 50)
+              pEma34 = pEma34 === undefined ? close : calculateClosedBarEMA(pEma34, close, 34)
+              pEma89 = pEma89 === undefined ? close : calculateClosedBarEMA(pEma89, close, 89)
+              pEma200 = pEma200 === undefined ? close : calculateClosedBarEMA(pEma200, close, 200)
 
               return {
                 time,
@@ -304,13 +334,20 @@ export function useLiveMarketFeed(
                 volume: vol,
                 ema20: pEma20,
                 ema50: pEma50,
+                ema34: pEma34,
+                ema89: pEma89,
+                ema200: pEma200,
               }
             })
 
             setCandles(realKlines)
             if (realKlines.length > 1) {
-              closedEma20Ref.current = realKlines[realKlines.length - 2].ema20
-              closedEma50Ref.current = realKlines[realKlines.length - 2].ema50
+              const secondToLast = realKlines[realKlines.length - 2]
+              closedEma20Ref.current = secondToLast.ema20
+              closedEma50Ref.current = secondToLast.ema50
+              closedEma34Ref.current = secondToLast.ema34
+              closedEma89Ref.current = secondToLast.ema89
+              closedEma200Ref.current = secondToLast.ema200
             }
             const lastCandle = realKlines[realKlines.length - 1]
             setCurrentPrice(lastCandle.close)
@@ -371,10 +408,16 @@ export function useLiveMarketFeed(
                 // Intra-bar update: calculate safe provisional EMA preview
                 const provEma20 = calculateProvisionalEMA(closedEma20Ref.current, closeP, 20)
                 const provEma50 = calculateProvisionalEMA(closedEma50Ref.current, closeP, 50)
+                const provEma34 = calculateProvisionalEMA(closedEma34Ref.current, closeP, 34)
+                const provEma89 = calculateProvisionalEMA(closedEma89Ref.current, closeP, 89)
+                const provEma200 = calculateProvisionalEMA(closedEma200Ref.current, closeP, 200)
 
                 if (isBarClosed && lastFinalizedBarTimeRef.current !== candleTime) {
                   closedEma20Ref.current = calculateClosedBarEMA(closedEma20Ref.current, closeP, 20)
                   closedEma50Ref.current = calculateClosedBarEMA(closedEma50Ref.current, closeP, 50)
+                  closedEma34Ref.current = calculateClosedBarEMA(closedEma34Ref.current, closeP, 34)
+                  closedEma89Ref.current = calculateClosedBarEMA(closedEma89Ref.current, closeP, 89)
+                  closedEma200Ref.current = calculateClosedBarEMA(closedEma200Ref.current, closeP, 200)
                   lastFinalizedBarTimeRef.current = candleTime
                 }
 
@@ -386,17 +429,26 @@ export function useLiveMarketFeed(
                   volume: vol,
                   ema20: provEma20,
                   ema50: provEma50,
+                  ema34: provEma34,
+                  ema89: provEma89,
+                  ema200: provEma200,
                 }
               } else if (candleTime > lastCandle.time) {
                 // New bar arrived: finalize previous candle closed EMA exactly once
                 if (lastFinalizedBarTimeRef.current !== lastCandle.time) {
                   closedEma20Ref.current = calculateClosedBarEMA(closedEma20Ref.current, lastCandle.close, 20)
                   closedEma50Ref.current = calculateClosedBarEMA(closedEma50Ref.current, lastCandle.close, 50)
+                  closedEma34Ref.current = calculateClosedBarEMA(closedEma34Ref.current, lastCandle.close, 34)
+                  closedEma89Ref.current = calculateClosedBarEMA(closedEma89Ref.current, lastCandle.close, 89)
+                  closedEma200Ref.current = calculateClosedBarEMA(closedEma200Ref.current, lastCandle.close, 200)
                   lastFinalizedBarTimeRef.current = lastCandle.time
                 }
 
                 const provEma20 = calculateProvisionalEMA(closedEma20Ref.current, closeP, 20)
                 const provEma50 = calculateProvisionalEMA(closedEma50Ref.current, closeP, 50)
+                const provEma34 = calculateProvisionalEMA(closedEma34Ref.current, closeP, 34)
+                const provEma89 = calculateProvisionalEMA(closedEma89Ref.current, closeP, 89)
+                const provEma200 = calculateProvisionalEMA(closedEma200Ref.current, closeP, 200)
 
                 updated.push({
                   time: candleTime,
@@ -407,6 +459,9 @@ export function useLiveMarketFeed(
                   volume: vol,
                   ema20: provEma20,
                   ema50: provEma50,
+                  ema34: provEma34,
+                  ema89: provEma89,
+                  ema200: provEma200,
                 })
 
                 // Strict memory bounding (F14)
@@ -490,8 +545,8 @@ export function useLiveMarketFeed(
       }
     }
 
-    if (isForex) {
-      // Forex / Gold: Pure Calibrated ECN Simulation
+    if (isForex || isGold) {
+      // Forex & Spot Gold: Pure Calibrated High-Frequency DMA Continuous Ticker
       startFallbackSimulation()
     } else {
       // Crypto: Binance Public WebSocket with Exponential Backoff
