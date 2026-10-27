@@ -941,11 +941,11 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
         </div>
 
         {/* Right: Technical Indicators & Tool Toggles */}
-        <div className="flex items-center gap-1.5 text-xs flex-wrap">
-          {/* Select -> Explain (OpenChart Killer Feature) */}
+        <div className="flex items-center gap-1.5 text-xs flex-wrap overflow-x-auto no-scrollbar py-0.5">
+          {/* Select -> Explain (OpenChart Feature) */}
           <button
             onClick={handleOpenSelectExplain}
-            className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-[11px] shadow-[0_0_15px_rgba(236,72,153,0.4)] flex items-center gap-1.5 cursor-pointer transition-all"
+            className="hidden sm:flex px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-[11px] shadow-[0_0_15px_rgba(236,72,153,0.4)] items-center gap-1.5 cursor-pointer transition-all shrink-0"
             title="OpenChart Feature: Select a range of candles to investigate anomaly causes"
           >
             <BoxSelect className="w-3.5 h-3.5" />
@@ -955,7 +955,7 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
           {/* Natural Language Monitoring (TeaScript) */}
           <button
             onClick={() => setIsNlMonitorOpen(true)}
-            className="px-2 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all"
+            className="hidden sm:flex px-2 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-bold text-[11px] items-center gap-1 cursor-pointer transition-all shrink-0"
             title="Autonomous Natural Language Monitor & TeaScript"
           >
             <Bot className="w-3.5 h-3.5 text-purple-400" />
@@ -965,7 +965,7 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
           {/* Pine Script Migration Studio */}
           <button
             onClick={() => setIsPineMigrationOpen(true)}
-            className="px-2 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all"
+            className="hidden sm:flex px-2 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 font-bold text-[11px] items-center gap-1 cursor-pointer transition-all shrink-0"
             title="Convert TradingView Pine Script into TeaScript"
           >
             <Code2 className="w-3.5 h-3.5 text-cyan-400" />
@@ -1115,16 +1115,18 @@ export const TradingViewChart = React.memo<TradingViewChartProps>(({
 
       {/* Interactive Chart Canvas with Drawing Toolbar & Volume Profile Overlay */}
       <div className="relative flex-1 w-full min-h-[380px] overflow-hidden">
-        {/* Left Drawing Toolbar */}
-        <DrawingToolbar
-          activeTool={activeTool}
-          onSelectTool={handleSelectTool}
-          onClearAll={handleClearDrawings}
-          isLocked={isLocked}
-          onToggleLock={() => setIsLocked(!isLocked)}
-          onOpenSelectExplain={handleOpenSelectExplain}
-          hasDrawings={drawnObjects.length > 0}
-        />
+        {/* Left Drawing Toolbar - Visible on tablet/desktop */}
+        <div className="hidden md:block">
+          <DrawingToolbar
+            activeTool={activeTool}
+            onSelectTool={handleSelectTool}
+            onClearAll={handleClearDrawings}
+            isLocked={isLocked}
+            onToggleLock={() => setIsLocked(!isLocked)}
+            onOpenSelectExplain={handleOpenSelectExplain}
+            hasDrawings={drawnObjects.length > 0}
+          />
+        </div>
 
         {/* Volume Profile (VPVR) Overlay */}
         <VolumeProfileOverlay

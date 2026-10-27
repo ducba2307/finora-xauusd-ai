@@ -141,7 +141,7 @@ Tỷ lệ R:R: 1 : ${risk_reward_ratio}
 
         <div className="text-right">
           <div className="text-[11px] text-gray-400 font-medium">Biên Lợi Nhuận</div>
-          <div className="text-lg font-bold font-mono text-cyan-300 mt-1">
+          <div className="text-base sm:text-lg font-bold font-mono tabular-nums text-cyan-300 mt-1">
             R:R 1 : {risk_reward_ratio}
           </div>
         </div>
@@ -179,7 +179,7 @@ Tỷ lệ R:R: 1 : ${risk_reward_ratio}
             <span className="text-[10px] text-gray-400 block uppercase font-semibold">
               Vào Lệnh (Entry)
             </span>
-            <span className="text-sm font-bold text-cyan-300 font-mono mt-1 block">
+            <span className="text-xs sm:text-sm font-bold text-cyan-300 font-mono tabular-nums mt-1 block">
               ${entry_price.toFixed(2)}
             </span>
             <span className="text-[10px] text-gray-400 block mt-0.5">Giá thị trường</span>
@@ -190,10 +190,10 @@ Tỷ lệ R:R: 1 : ${risk_reward_ratio}
             <span className="text-[10px] text-rose-400 block uppercase font-semibold">
               Cắt Lỗ (SL)
             </span>
-            <span className="text-sm font-bold text-rose-400 font-mono mt-1 block">
+            <span className="text-xs sm:text-sm font-bold text-rose-400 font-mono tabular-nums mt-1 block">
               ${stop_loss.toFixed(2)}
             </span>
-            <span className="text-[10px] text-rose-400/80 block mt-0.5">-{riskDistance} pips</span>
+            <span className="text-[10px] text-rose-400/80 font-mono tabular-nums block mt-0.5">-{riskDistance} pips</span>
           </div>
 
           {/* Take Profit 1 */}
@@ -201,10 +201,10 @@ Tỷ lệ R:R: 1 : ${risk_reward_ratio}
             <span className="text-[10px] text-emerald-400 block uppercase font-semibold">
               Chốt Lời 1 (TP1)
             </span>
-            <span className="text-sm font-bold text-emerald-400 font-mono mt-1 block">
+            <span className="text-xs sm:text-sm font-bold text-emerald-400 font-mono tabular-nums mt-1 block">
               ${take_profit_1.toFixed(2)}
             </span>
-            <span className="text-[10px] text-emerald-400/80 block mt-0.5">
+            <span className="text-[10px] text-emerald-400/80 font-mono tabular-nums block mt-0.5">
               +{rewardDistance} pips
             </span>
           </div>
@@ -214,7 +214,7 @@ Tỷ lệ R:R: 1 : ${risk_reward_ratio}
             <span className="text-[10px] text-emerald-400 block uppercase font-semibold">
               Chốt Lời 2 (TP2)
             </span>
-            <span className="text-sm font-bold text-emerald-400 font-mono mt-1 block">
+            <span className="text-xs sm:text-sm font-bold text-emerald-400 font-mono tabular-nums mt-1 block">
               ${take_profit_2.toFixed(2)}
             </span>
             <span className="text-[10px] text-emerald-400/80 block mt-0.5">Kỳ vọng mở rộng</span>

@@ -24,7 +24,7 @@ export const SMCOverlayPanel: React.FC<SMCOverlayPanelProps> = ({
   visible,
   onExecuteSetup,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : true)
   const [executed, setExecuted] = useState(false)
 
   if (!visible || !smcResult) return null
@@ -41,7 +41,7 @@ export const SMCOverlayPanel: React.FC<SMCOverlayPanelProps> = ({
   }
 
   return (
-    <div className="absolute top-14 left-4 z-20 max-w-sm w-80 font-sans pointer-events-auto">
+    <div className="absolute top-12 left-2 sm:left-4 z-20 max-w-[calc(100vw-1rem)] sm:max-w-sm w-72 sm:w-80 font-sans pointer-events-auto">
       <div className="bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 rounded-xl shadow-2xl overflow-hidden transition-all duration-300">
         {/* Header matching video: SMC DESKTOP */}
         <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950/60 px-3.5 py-2.5 flex items-center justify-between border-b border-cyan-500/20">

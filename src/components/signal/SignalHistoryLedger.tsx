@@ -26,29 +26,29 @@ export const SignalHistoryLedger: React.FC<SignalHistoryLedgerProps> = ({ signal
       {/* 3 Metric Cards */}
       <div className="grid grid-cols-3 gap-2 text-center text-xs">
         <div className="bg-[#0e1322] border border-white/5 p-2 rounded-xl">
-          <span className="text-[10px] text-gray-400 block">Tỷ Lệ Thắng</span>
-          <span className="text-sm font-black text-emerald-400 font-mono mt-0.5 block">
+          <span className="text-[10px] text-gray-400 block truncate">Tỷ Lệ Thắng</span>
+          <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono tabular-nums mt-0.5 block">
             {stats.winRatePct}%
           </span>
-          <span className="text-[9px] text-gray-500 block">
+          <span className="text-[9px] text-gray-500 font-mono tabular-nums block">
             {stats.winCount}W / {stats.lossCount}L
           </span>
         </div>
 
         <div className="bg-[#0e1322] border border-white/5 p-2 rounded-xl">
-          <span className="text-[10px] text-gray-400 block">Lợi Nhuận Tích Lũy</span>
-          <span className="text-sm font-black text-cyan-300 font-mono mt-0.5 block">
+          <span className="text-[10px] text-gray-400 block truncate">Lợi Nhuận R</span>
+          <span className="text-xs sm:text-sm font-black text-cyan-300 font-mono tabular-nums mt-0.5 block">
             +{stats.totalRealizedR}R
           </span>
-          <span className="text-[9px] text-gray-500 block">R-Multiple Net</span>
+          <span className="text-[9px] text-gray-500 block truncate">R-Multiple</span>
         </div>
 
         <div className="bg-[#0e1322] border border-white/5 p-2 rounded-xl">
-          <span className="text-[10px] text-gray-400 block">R:R Trung Bình</span>
-          <span className="text-sm font-black text-amber-300 font-mono mt-0.5 block">
+          <span className="text-[10px] text-gray-400 block truncate">R:R Trung Bình</span>
+          <span className="text-xs sm:text-sm font-black text-amber-300 font-mono tabular-nums mt-0.5 block">
             1 : {stats.averageRR}
           </span>
-          <span className="text-[9px] text-gray-500 block">Kỳ vọng toán học</span>
+          <span className="text-[9px] text-gray-500 block truncate">Kỳ vọng</span>
         </div>
       </div>
 
@@ -63,27 +63,27 @@ export const SignalHistoryLedger: React.FC<SignalHistoryLedgerProps> = ({ signal
           return (
             <div
               key={sig.id}
-              className="bg-[#0b0e1b] border border-white/5 hover:border-white/10 p-2.5 rounded-xl flex items-center justify-between text-xs transition-colors"
+              className="bg-[#0b0e1b] border border-white/5 hover:border-white/10 p-2.5 rounded-xl flex items-center justify-between gap-2 text-xs transition-colors"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono shrink-0 ${
                     isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
                   }`}
                 >
                   {sig.direction}
                 </span>
-                <div>
-                  <div className="font-semibold text-gray-200 text-[11px] truncate max-w-[180px] sm:max-w-xs">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-gray-200 text-[11px] truncate">
                     {sig.setupName}
                   </div>
-                  <div className="text-[10px] text-gray-500 font-mono">
-                    Entry: ${sig.entryPrice.toFixed(2)} | SL: ${sig.stopLoss.toFixed(2)} | TP: ${sig.takeProfit1.toFixed(2)}
+                  <div className="text-[10px] text-gray-500 font-mono tabular-nums truncate">
+                    Entry: ${sig.entryPrice.toFixed(2)} <span className="text-gray-700">|</span> SL: ${sig.stopLoss.toFixed(2)} <span className="text-gray-700">|</span> TP: ${sig.takeProfit1.toFixed(2)}
                   </div>
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <div
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
                     isWin
@@ -93,17 +93,17 @@ export const SignalHistoryLedger: React.FC<SignalHistoryLedgerProps> = ({ signal
                       : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                   }`}
                 >
-                  {isWin && <CheckCircle2 className="w-2.5 h-2.5" />}
-                  {isLoss && <XCircle className="w-2.5 h-2.5" />}
-                  {isPending && <Clock className="w-2.5 h-2.5" />}
-                  <span>
+                  {isWin && <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />}
+                  {isLoss && <XCircle className="w-2.5 h-2.5 shrink-0" />}
+                  {isPending && <Clock className="w-2.5 h-2.5 shrink-0" />}
+                  <span className="whitespace-nowrap">
                     {sig.status === 'FULL_TP_HIT'
                       ? `+${sig.realizedR}R ĐẠT TP2`
                       : sig.status === 'TP1_HIT'
                       ? `+${sig.realizedR}R ĐÃ TP1`
                       : sig.status === 'STOPPED_OUT'
                       ? `${sig.realizedR}R DÍNH SL`
-                      : 'ĐANG CHỜ ENTRY'}
+                      : 'CHỜ ENTRY'}
                   </span>
                 </div>
               </div>
